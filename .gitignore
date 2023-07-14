@@ -1,0 +1,9 @@
+# ignore terraform generated files
+*/.terraform/
+*/.terraform.lock*
+*/.terraform.tfstate*
+*/terraform.tfstate*
+*/terraform.tfvars*
+
+# ignore custom files
+*/*.yaml
