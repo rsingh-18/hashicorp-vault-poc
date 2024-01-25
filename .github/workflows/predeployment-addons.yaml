@@ -1,4 +1,4 @@
-name: Backend Deploy
+name: Pre-deployment Addons
 run-name: ${{ github.actor }} is running out Backend Deploy 🚀
 on:
   workflow_call:
@@ -14,11 +14,11 @@ on:
         required: true
 
 concurrency:
-  group: backend-deploy-${{ inputs.environment }}
+  group: predeployment-addons-${{ inputs.environment }}
   cancel-in-progress: false
 
 jobs:
-  Backend-Deploy:
+  Predeployment-addons:
     runs-on: ubuntu-latest
 
     environment: ${{ inputs.environment }}
