@@ -1,0 +1,71 @@
+name: Backend Deploy
+run-name: ${{ github.actor }} is running out Backend Deploy 🚀
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        description: The environment to apply in
+        required: true
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: The environment to apply in
+        required: true
+jobs:
+  Backend-Deploy:
+    runs-on: ubuntu-latest
+
+    environment: ${{ inputs.environment }}
+
+    outputs:
+      s3-bucket-name: ${{ steps.s3.outputs.bucket-name }}
+
+    steps:
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+      - name: List files in the repository
+        run: |
+          ls ${{ github.workspace }}
+      
+      - name: Region and environment parameters
+        id: parameters
+        run: |
+          if [ "x${{ vars.AWS_REGION }}" == 'x' ]; then
+            echo "::error::AWS_REGION is not set"
+            exit 1
+          fi
+          if [ "x${{ vars.AWS_ACCOUNT_ID }}" == 'x' ]; then
+            echo "::error::AWS_ACCOUNT_ID is not set"
+            exit 1
+          fi
+          echo "::notice title=aws-region::${{ vars.AWS_REGION }}"
+          echo "::notice title=environment::${{ inputs.environment }}"
+          echo "aws-region=${{ vars.AWS_REGION }}" >> $GITHUB_OUTPUT
+          echo "aws-access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_OUTPUT
+          echo "aws-secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
+          echo "repository=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ steps.parameters.outputs.aws-region }}
+          aws-secret-access-key: ${{ steps.parameters.outputs.aws-secret-access-key }}
+          aws-region: ${{ steps.parameters.outputs.aws-region }}
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+      
+      - name: Get S3 bucket
+        id: s3
+        run: |
+          s3_bucket_name="$((aws s3 ls | grep tf-s3-backend || true) | awk '{ print $3 }')"
+          echo "::debug::bucket-name=${s3_bucket_name:-fiesta-terraform-states}"
+          echo "bucket-name=${s3_bucket_name:-fiesta-terraform-states}" >> $GITHUB_OUTPUT
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+      
+      - run: echo "🍏 This job's status is ${{ job.status }}."
