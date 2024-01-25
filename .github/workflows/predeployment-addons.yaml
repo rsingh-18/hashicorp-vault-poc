@@ -66,7 +66,6 @@ jobs:
           aws-access-key-id: ${{ steps.parameters.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.parameters.outputs.aws-secret-access-key }}
           aws-region: ${{ steps.parameters.outputs.aws-region }}
-          aws-profile: ${{ steps.parameters.outputs.aws-profile }}
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
       
       - name: Get S3 bucket
@@ -109,5 +108,17 @@ jobs:
           sudo mv kubectl /usr/local/bin/
           aws eks update-kubeconfig --region ${{ steps.parameters.outputs.aws-region }} --name ${{ steps.parameters.outputs.eks-cluster-name }}
           echo "$(kubectl get ns)"
+
+      - name: Terraform apply
+        run: |
+          terraform init \
+            -backend-config="region=${{ steps.parameters.outputs.aws-region }}"
+            -backend-config="bucket=${{ steps.s3.outputs.bucket-name }}" \
+            -backend-config="dynamodb_table=${{ steps.dynamodb.outputs.table-name }}" \
+            -backend-config="key=${{ steps.parameters.outputs.aws-region }}/pre_deployment_addons/${{ vars.NAMESPACE }}/terraform.tfstate" \
+            -backend-config="access_key=${{ steps.parameters.outputs.aws-access-key-id }}" \
+	          -backend-config="secret_key=${{ steps.parameters.outputs.aws-secret-access-key }}"
+        working-directory: pre_deployment_addons
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
 
       - run: echo "🍏 This job's status is ${{ job.status }}."
