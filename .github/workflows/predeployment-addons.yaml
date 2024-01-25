@@ -130,6 +130,7 @@ jobs:
             -var namespace="${{ vars.NAMESPACE }}" \
             -var s3policyArn="${{ vars.S3POLICYARN }}" \
             -var admin_user_policyArn="${{ vars.ADMIN_USER_POLICYARN }}" \
+            -var rds_ca_certificate_identifier="${{ vars.RDS_CA_CERTIFICATE_IDENTIFIER }}" \
             -input=false \
             -auto-approve
         working-directory: pre_deployment_addons
