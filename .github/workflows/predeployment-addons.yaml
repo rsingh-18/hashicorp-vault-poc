@@ -1,4 +1,4 @@
-name: Backend Deploy
+name: Pre-deployment Addons
 run-name: ${{ github.actor }} is running out Backend Deploy 🚀
 on:
   workflow_call:
@@ -12,14 +12,20 @@ on:
       environment:
         description: The environment to apply in
         required: true
+
+concurrency:
+  group: predeployment-addons-${{ inputs.environment }}
+  cancel-in-progress: false
+
 jobs:
-  Backend-Deploy:
+  Predeployment-addons:
     runs-on: ubuntu-latest
 
     environment: ${{ inputs.environment }}
 
     outputs:
       s3-bucket-name: ${{ steps.s3.outputs.bucket-name }}
+      dynamodb-table-name: ${{ steps.dynamodb.outputs.table-name }}
 
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
@@ -47,25 +53,61 @@ jobs:
           echo "::notice title=aws-region::${{ vars.AWS_REGION }}"
           echo "::notice title=environment::${{ inputs.environment }}"
           echo "aws-region=${{ vars.AWS_REGION }}" >> $GITHUB_OUTPUT
+          echo "aws-profile=default" >> $GITHUB_OUTPUT
           echo "aws-access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_OUTPUT
           echo "aws-secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
+          echo "eks-cluster-name=${{ secrets.EKS_CLUSTER_NAME }}" >> $GITHUB_OUTPUT
           echo "repository=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ steps.parameters.outputs.aws-region }}
+          aws-access-key-id: ${{ steps.parameters.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.parameters.outputs.aws-secret-access-key }}
           aws-region: ${{ steps.parameters.outputs.aws-region }}
+          aws-profile: ${{ steps.parameters.outputs.aws-profile }}
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
       
       - name: Get S3 bucket
         id: s3
         run: |
-          s3_bucket_name="$((aws s3 ls | grep tf-s3-backend || true) | awk '{ print $3 }')"
+          s3_bucket_name="$((aws s3 ls | grep tf-engiam-s3-backend || true) | awk '{ print $3 }')"
           echo "::debug::bucket-name=${s3_bucket_name:-fiesta-terraform-states}"
           echo "bucket-name=${s3_bucket_name:-fiesta-terraform-states}" >> $GITHUB_OUTPUT
+          echo "🍟 ${s3_bucket_name} retrieved"
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
-      
+
+      - name: Get dynamodb table
+        id: dynamodb
+        run: |
+          dynamo_table="$(aws dynamodb list-tables | jq -r '.TableNames[]' | grep tf-engiam-state-lock-backend-db || true)"
+          echo "::debug::table-name=${dynamo_table:-terraform-locks}"
+          echo "table-name=${dynamo_table:-terraform-locks}" >> $GITHUB_OUTPUT
+          echo "📄 ${dynamo_table} retrieved"
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+
+      - name: Get terraform version
+        id: terraform-info
+        run: echo "tf-version=1.5.3" >> $GITHUB_OUTPUT
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.0.0
+        with:
+          terraform_version: ${{ steps.terraform-info.outputs.tf-version }}
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+
+      - name: Install and configure kubectl
+        run: |
+          VERSION=$(curl --silent https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+          curl https://storage.googleapis.com/kubernetes-release/release/$VERSION/bin/linux/amd64/kubectl \
+            --progress-bar \
+            --location \
+            --remote-name
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          aws eks update-kubeconfig --region ${{ steps.parameters.outputs.aws-region }} --name ${{ steps.parameters.outputs.eks-cluster-name }}
+          echo "$(kubectl get ns)"
+
       - run: echo "🍏 This job's status is ${{ job.status }}."
