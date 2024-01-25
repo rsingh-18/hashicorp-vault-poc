@@ -1,4 +1,4 @@
-name: Pre-deployment Addons
+name: Predeployment Addons
 run-name: ${{ github.actor }} is running out Backend Deploy 🚀
 on:
   workflow_call:
