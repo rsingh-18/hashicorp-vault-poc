@@ -112,12 +112,12 @@ jobs:
       - name: Terraform apply
         run: |
           terraform init \
-            -backend-config="region=${{ steps.parameters.outputs.aws-region }}"
+            -backend-config="region=${{ steps.parameters.outputs.aws-region }}" \
             -backend-config="bucket=${{ steps.s3.outputs.bucket-name }}" \
             -backend-config="dynamodb_table=${{ steps.dynamodb.outputs.table-name }}" \
             -backend-config="key=${{ steps.parameters.outputs.aws-region }}/pre_deployment_addons/${{ vars.NAMESPACE }}/terraform.tfstate" \
             -backend-config="access_key=${{ steps.parameters.outputs.aws-access-key-id }}" \
-	          -backend-config="secret_key=${{ steps.parameters.outputs.aws-secret-access-key }}"
+            -backend-config="secret_key=${{ steps.parameters.outputs.aws-secret-access-key }}"
         working-directory: pre_deployment_addons
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
 
