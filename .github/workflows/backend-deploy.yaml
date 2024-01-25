@@ -56,7 +56,7 @@ jobs:
           echo "aws-profile=default" >> $GITHUB_OUTPUT
           echo "aws-access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_OUTPUT
           echo "aws-secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
-          echo "eks-cluster-name=${{ vars.EKS_CLUSTER_NAME }}" >> $GITHUB_OUTPUT
+          echo "eks-cluster-name=${{ secrets.EKS_CLUSTER_NAME }}" >> $GITHUB_OUTPUT
           echo "repository=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
       
