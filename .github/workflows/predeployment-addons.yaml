@@ -118,6 +118,20 @@ jobs:
             -backend-config="key=${{ steps.parameters.outputs.aws-region }}/pre_deployment_addons/${{ vars.NAMESPACE }}/terraform.tfstate" \
             -backend-config="access_key=${{ steps.parameters.outputs.aws-access-key-id }}" \
             -backend-config="secret_key=${{ steps.parameters.outputs.aws-secret-access-key }}"
+          terraform providers
+          terraform apply \
+            -var enable_namespace_creation="${{ var.ENABLE_NAMESPACE_CREATION }}" \
+            -var enable_bucket_creation="${{ var.ENABLE_BUCKET_CREATION }}" \
+            -var enable_iam_resource_creation="${{ var.ENABLE_IAM_RESOURCE_CREATION }}" \
+            -var enable_rds_creation="${{ var.ENABLE_RDS_CREATION }}" \
+            -var profile="${{ var.PROFILE }}" \
+            -var region="${{ steps.parameters.outputs.aws-region }}" \
+            -var cluster_name="${{ steps.parameters.outputs.eks-cluster-name }}" \
+            -var namespace="${{ vars.NAMESPACE }}" \
+            -var s3policyArn="${{ vars.S3POLICYARN }}" \
+            -var admin_user_policyArn="${{ vars.ADMIN_USER_POLICYARN }}" \
+            -input=false \
+            -auto-approve
         working-directory: pre_deployment_addons
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
 
