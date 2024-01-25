@@ -12,6 +12,11 @@ on:
       environment:
         description: The environment to apply in
         required: true
+
+concurrency:
+  group: backend-deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
 jobs:
   Backend-Deploy:
     runs-on: ubuntu-latest
@@ -20,6 +25,7 @@ jobs:
 
     outputs:
       s3-bucket-name: ${{ steps.s3.outputs.bucket-name }}
+      dynamodb-table-name: ${{ steps.dynamodb.outputs.table-name }}
 
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
@@ -63,9 +69,19 @@ jobs:
       - name: Get S3 bucket
         id: s3
         run: |
-          s3_bucket_name="$((aws s3 ls | grep tf-s3-backend || true) | awk '{ print $3 }')"
+          s3_bucket_name="$((aws s3 ls | grep tf-engiam-s3-backend || true) | awk '{ print $3 }')"
           echo "::debug::bucket-name=${s3_bucket_name:-fiesta-terraform-states}"
           echo "bucket-name=${s3_bucket_name:-fiesta-terraform-states}" >> $GITHUB_OUTPUT
+          echo "🍟 ${s3_bucket_name} retrieved"
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+
+      - name: Get dynamodb table
+        id: dynamodb
+        run: |
+          dynamo_table="$(aws dynamodb list-tables | jq -r '.TableNames[]' | grep tf-engiam-state-lock-backend-db || true)"
+          echo "::debug::table-name=${dynamo_table:-terraform-locks}"
+          echo "table-name=${dynamo_table:-terraform-locks}" >> $GITHUB_OUTPUT
+          echo "📄 ${dynamo_table} retrieved"
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
       
       - run: echo "🍏 This job's status is ${{ job.status }}."
