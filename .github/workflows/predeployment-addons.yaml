@@ -120,11 +120,11 @@ jobs:
             -backend-config="secret_key=${{ steps.parameters.outputs.aws-secret-access-key }}"
           terraform providers
           terraform apply \
-            -var enable_namespace_creation="${{ var.ENABLE_NAMESPACE_CREATION }}" \
-            -var enable_bucket_creation="${{ var.ENABLE_BUCKET_CREATION }}" \
-            -var enable_iam_resource_creation="${{ var.ENABLE_IAM_RESOURCE_CREATION }}" \
-            -var enable_rds_creation="${{ var.ENABLE_RDS_CREATION }}" \
-            -var profile="${{ var.PROFILE }}" \
+            -var enable_namespace_creation="${{ vars.ENABLE_NAMESPACE_CREATION }}" \
+            -var enable_bucket_creation="${{ vars.ENABLE_BUCKET_CREATION }}" \
+            -var enable_iam_resource_creation="${{ vars.ENABLE_IAM_RESOURCE_CREATION }}" \
+            -var enable_rds_creation="${{ vars.ENABLE_RDS_CREATION }}" \
+            -var profile="${{ vars.PROFILE }}" \
             -var region="${{ steps.parameters.outputs.aws-region }}" \
             -var cluster_name="${{ steps.parameters.outputs.eks-cluster-name }}" \
             -var namespace="${{ vars.NAMESPACE }}" \
