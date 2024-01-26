@@ -1,5 +1,5 @@
-name: Predeployment Addons
-run-name: ${{ github.actor }} is installing Predeloyment Addons 🚀
+name: Delete Predeployment Addons
+run-name: ${{ github.actor }} is running out Destruction of Predeloyment Addons 🚀
 on:
   workflow_call:
     inputs:
@@ -14,7 +14,7 @@ on:
         required: true
 
 concurrency:
-  group: predeployment-addons-${{ inputs.environment }}
+  group: delete-predeployment-addons-${{ inputs.environment }}
   cancel-in-progress: false
 
 jobs:
@@ -35,9 +35,6 @@ jobs:
         uses: actions/checkout@v4
       - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
-      - name: List files in the repository
-        run: |
-          ls ${{ github.workspace }}
       
       - name: Region and environment parameters
         id: parameters
@@ -118,8 +115,8 @@ jobs:
             -backend-config="key=${{ steps.parameters.outputs.aws-region }}/pre_deployment_addons/${{ vars.NAMESPACE }}/terraform.tfstate" \
             -backend-config="access_key=${{ steps.parameters.outputs.aws-access-key-id }}" \
             -backend-config="secret_key=${{ steps.parameters.outputs.aws-secret-access-key }}"
-          terraform providers
-          terraform apply \
+          
+          terraform destroy \
             -var enable_namespace_creation="${{ vars.ENABLE_NAMESPACE_CREATION }}" \
             -var enable_bucket_creation="${{ vars.ENABLE_BUCKET_CREATION }}" \
             -var enable_iam_resource_creation="${{ vars.ENABLE_IAM_RESOURCE_CREATION }}" \
