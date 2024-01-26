@@ -123,11 +123,7 @@ jobs:
 
       - name: Configure aws-auth configmap
         run: |
-          kubectl aws-auth upsert \
-            --mapusers \
-            --userarn arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:user/tf-engiam-s3-backend-${{ vars.AWS_ACCOUNT_ID }}-user \
-	          --username tf-engiam-s3-backend-${{ vars.AWS_ACCOUNT_ID }}-user \
-	          --groups system:masters
+          kubectl aws-auth upsert --mapusers --userarn arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:user/tf-engiam-s3-backend-${{ vars.AWS_ACCOUNT_ID }}-user --username tf-engiam-s3-backend-${{ vars.AWS_ACCOUNT_ID }}-user --groups system:masters
           echo "$(kubectl get ns)"
 
       - name: Terraform apply
