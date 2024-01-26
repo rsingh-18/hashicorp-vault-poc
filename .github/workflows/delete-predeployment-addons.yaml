@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   Destroy-Predeployment-addons:
-    runs-on: [self-hosted, linux, x64, philips-code-hub, ubuntu-latest]
+    runs-on: ubuntu-latest
 
     environment: ${{ inputs.environment }}
 
