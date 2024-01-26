@@ -110,7 +110,7 @@ jobs:
           aws eks update-kubeconfig --region ${{ steps.parameters.outputs.aws-region }} --name ${{ steps.parameters.outputs.eks-cluster-name }}
           echo "$(kubectl get ns)"
 
-      - name: Terraform apply
+      - name: Terraform destroy
         run: |
           terraform init \
             -backend-config="region=${{ steps.parameters.outputs.aws-region }}" \
