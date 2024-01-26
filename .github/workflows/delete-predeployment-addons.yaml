@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  Predeployment-addons:
-    runs-on: ubuntu-latest
+  Destroy-Predeployment-addons:
+    runs-on: [self-hosted, linux, x64, philips-code-hub, ubuntu-latest]
 
     environment: ${{ inputs.environment }}
 
