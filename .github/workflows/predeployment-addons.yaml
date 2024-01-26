@@ -109,9 +109,25 @@ jobs:
           enablePlugins: true
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
 
+      - name: Setup aws-auth kubectl plugin
+        run: |
+          echo "::notice title=kubectl version::${{ steps.setup-kubectl.outputs.kubectl-version }}"
+          echo "::notice title=krew version::${{ steps.setup-kubectl.outputs.krew-version }}"
+          kubectl krew install aws-auth
+          echo "::notice title=aws-auth version::$(kubectl aws-auth version)"
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+
       - name: Configure kubectl
         run: |
           aws eks update-kubeconfig --region ${{ steps.parameters.outputs.aws-region }} --name ${{ steps.parameters.outputs.eks-cluster-name }}
+
+      - name: Configure aws auth configmap
+        run: |
+          kubectl aws-auth upsert \
+	          --mapusers \
+	          --userarn arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:user/tf-engiam-s3-backend-${{ vars.AWS_ACCOUNT_ID }}-user \
+	          --username tf-engiam-s3-backend-${{ vars.AWS_ACCOUNT_ID }}-user \
+	          --groups system:masters
           echo "$(kubectl get ns)"
 
       - name: Terraform apply
@@ -140,5 +156,11 @@ jobs:
             -auto-approve
         working-directory: pre_deployment_addons
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+
+      - name: Revert aws auth configmap
+        run: |
+          kubectl aws-auth remove \
+	          --mapusers \
+	          --userarn arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:user/tf-engiam-s3-backend-${{ vars.AWS_ACCOUNT_ID }}-user
 
       - run: echo "🍏 This job's status is ${{ job.status }}."
