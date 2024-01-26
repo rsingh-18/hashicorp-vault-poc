@@ -27,6 +27,9 @@ jobs:
       s3-bucket-name: ${{ steps.s3.outputs.bucket-name }}
       dynamodb-table-name: ${{ steps.dynamodb.outputs.table-name }}
 
+    env:
+      KUBECTL_VERSION: v1.28.4
+
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
       - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
@@ -58,14 +61,15 @@ jobs:
           echo "aws-secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
           echo "eks-cluster-name=${{ secrets.EKS_CLUSTER_NAME }}" >> $GITHUB_OUTPUT
           echo "repository=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
+          echo "cluster-admin-role-arn=arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ inputs.environment }}-cluster-eks-admins-access" >> $GITHUB_OUTPUT
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
+          aws-region: ${{ steps.parameters.outputs.aws-region }}
           aws-access-key-id: ${{ steps.parameters.outputs.aws-access-key-id }}
           aws-secret-access-key: ${{ steps.parameters.outputs.aws-secret-access-key }}
-          aws-region: ${{ steps.parameters.outputs.aws-region }}
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
       
       - name: Get S3 bucket
@@ -97,16 +101,29 @@ jobs:
           terraform_version: ${{ steps.terraform-info.outputs.tf-version }}
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
 
-      - name: Install and configure kubectl
+      - name: Setup kubectl
+        id: setup-kubectl
+        uses: marcofranssen/setup-kubectl@v1.0.1
+        with:
+          kubectlVersion: ${{ env.KUBECTL_VERSION }}
+          enablePlugins: true
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+
+      - name: Setup aws-auth kubectl plugin
         run: |
-          VERSION=$(curl --silent https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-          curl https://storage.googleapis.com/kubernetes-release/release/$VERSION/bin/linux/amd64/kubectl \
-            --progress-bar \
-            --location \
-            --remote-name
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
+          echo "::notice title=kubectl version::${{ steps.setup-kubectl.outputs.kubectl-version }}"
+          echo "::notice title=krew version::${{ steps.setup-kubectl.outputs.krew-version }}"
+          kubectl krew install aws-auth
+          echo "::notice title=aws-auth version::$(kubectl aws-auth version)"
+        if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+
+      - name: Configure kubectl
+        run: |
           aws eks update-kubeconfig --region ${{ steps.parameters.outputs.aws-region }} --name ${{ steps.parameters.outputs.eks-cluster-name }}
+
+      - name: Configure aws-auth configmap
+        run: |
+          kubectl aws-auth upsert --mapusers --userarn arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:user/tf-engiam-s3-backend-${{ vars.AWS_ACCOUNT_ID }}-user --username tf-engiam-s3-backend-${{ vars.AWS_ACCOUNT_ID }}-user --groups system:masters
           echo "$(kubectl get ns)"
 
       - name: Terraform apply
@@ -135,5 +152,11 @@ jobs:
             -auto-approve
         working-directory: pre_deployment_addons
         if: vars.IS_CANARY == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+
+      - name: Revert aws auth configmap
+        run: |
+          kubectl aws-auth remove \
+	          --mapusers \
+	          --userarn arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:user/tf-engiam-s3-backend-${{ vars.AWS_ACCOUNT_ID }}-user
 
       - run: echo "🍏 This job's status is ${{ job.status }}."
